@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>消息通知</title>
+    <meta charset="UTF-8">
+    <meta content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" name="viewport"/>
+    <meta content="yes" name=" apple-mobile-web-app-capable"/>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <meta http-equiv="Pragma" content="no-cache"/>
+    <meta http-equiv="Cache-Control" content="no-cache"/>
+    <meta http-equiv="Cache-Control" content="max-age=0"/>
+    <link rel="stylesheet" href="lib/weui/dist/style/weui.min.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/iconfont.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/swiper.css">
+</head>
+<body id="readCount" v-cloak class="message-readCount">
+<div class="nav nav-tab">
+    <a v-bind:class="{active:replyed&&tabType=='reply'}" @click="tab('reply',true)" href="javascript:;">
+        {{'已回复(' + replyCount.replyed + ')'}}
+    </a>
+    <a v-bind:class="{active:!replyed&&tabType=='reply'}" @click="tab('reply')" href="javascript:;">
+        {{'未回复(' + replyCount.noReply + ')'}}
+    </a>
+    <a v-bind:class="{active:isread&&tabType=='read'}" @click="tab('read',true)" href="javascript:;">
+        {{'已读(' + readCount.read + ')'}}
+    </a>
+    <a v-bind:class="{active:!isread&&tabType=='read'}" @click="tab('read')" href="javascript:;">
+        {{'未读(' + readCount.noRead + ')'}}
+    </a>
+</div>
+<div class="list" v-show="tabType=='reply' && !loading">
+    <a class="item" v-for="item in replyData" v-show="replyed" href="{{'tel:' + item.user.mobile}}">
+        <span class="name">{{item.user.realname}}</span>
+        <i class="iconfont icon-telPhone  tel"></i>
+        <span class="con">{{item.content}}</span>
+    </a>
+    <a class="item" v-for="item in noReplyData" v-show="!replyed" href="{{'tel:' + item.objectuser.mobile}}">
+        <span class="name">{{item.objectname}}</span>
+        <i class="iconfont icon-telPhone  tel"></i>
+    </a>
+    <div class="no-data-box" v-show="(replyed && replyCount.replyed==0)||(!replyed && !noReplyData.length)">
+        <img alt="" src="img/none-inferior.gif">
+    </div>
+</div>
+<div class="list" v-show="tabType=='read' && !loading">
+    <a v-show="isread" class="item" v-for="item in readData" href="{{'tel:' + item.objectuser.mobile}}">
+        <span class="name">{{item.objectname}}</span>
+        <i class="iconfont icon-telPhone  tel"></i>
+    </a>
+    <a v-show="!isread" class="item" v-for="item in noReadData" href="{{'tel:' + item.objectuser.mobile}}">
+        <span class="name">{{item.objectname}}</span>
+        <i class="iconfont icon-telPhone tel"></i>
+    </a>
+    <div class="no-data-box" v-show="(isread && readCount.read==0)||(!isread && readCount.noRead==0)">
+        <img alt="" src="img/none-inferior.gif">
+    </div>
+</div>
+</body>
+<script data-main="js/readCount" src="lib/requirejs/require.js"></script>
+</html>

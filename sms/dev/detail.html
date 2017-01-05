@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>消息通知</title>
+    <meta charset="UTF-8">
+    <meta content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" name="viewport"/>
+    <meta content="yes" name=" apple-mobile-web-app-capable"/>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <meta http-equiv="Pragma" content="no-cache"/>
+    <meta http-equiv="Cache-Control" content="no-cache"/>
+    <meta http-equiv="Cache-Control" content="max-age=0"/>
+    <link rel="stylesheet" href="lib/weui/dist/style/weui.min.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/iconfont.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/swiper.css">
+</head>
+<body id="detail" v-cloak class="detail">
+<div class="detail-con" v-show="loaded">
+    <div class="avatar" href="javascript:;" v-show="!detailData.teacherSend">
+        <img :src="detailData.user.avatar">
+    </div>
+    <div class="content" v-show="!detailData.teacherSend">
+        <div>{{detailData.message.pushname}}</div>
+        <span class="sms-title">{{detailData.message.title||detailData.title}}</span>
+        <i class="mes-time" v-text="detailData.messageTime"></i>
+    </div>
+    <span class="sms-title" v-show="detailData.teacherSend">{{detailData.message.title||detailData.title}}</span>
+    <i class="pull-right gray" v-text="detailData.messageTime" v-show="detailData.teacherSend"></i>
+    <p id="sms-content" v-html="content.message"></p>
+    <div v-for="item in content.voiceRecord" v-show="content.voiceRecord.length" class="record-audio">
+        <span class="check-angle-right"></span>
+        <div @click="playAudio(item)" class="wx-check">
+            <span v-show="!item.playing"></span>
+            <span class="voice-playing" v-show="item.playing"></span>
+            <audio id="{{item.url}}"></audio>
+        </div>
+        <div class="voice-time">
+            {{item.duration}}"
+        </div>
+    </div>
+    <div class="photo-list" data-role="photoList">
+        <div data-role="photoItem" v-for="img in content.config">
+            <img data-original="{{img.url.split('!')[0]+'!medium.640'}}" :src="img.url+'!medium.640'">
+        </div>
+    </div>
+    <div v-for="item in editorPlayer" v-show="editorPlayer.length" class="editor-audio">
+        <div @click="playAudio(item)" class="playEditorAudio">
+            <img :src="item.img">
+            <audio id="{{item.id}}"></audio>
+            <span v-text="item.name"></span>
+        </div>
+    </div>
+    <div class="receive-name" v-show="detailData.teacherSend"
+         @click="showReceiver()">
+        <span v-show="!detailData.receiveShow">接收人：{{detailData.receivename}}</span>
+        <i v-show="!detailData.receiveShow&&detailData.receivename.length>20" class="iconfont icon-unfold"></i>
+            <span v-show="detailData.receiveShow">
+                接收人：{{detailData.receivename}}&nbsp;&nbsp;&nbsp;&nbsp;
+                <i class="iconfont icon-fold"></i>
+            </span>
+    </div>
+    <div class="sms-count" v-show="detailData.teacherSend">
+        <a href="{{'readCount.html?action=reply&messageid=' + detailData.messageid}}">回复{{detailData.replynumber}}</a>
+        <span class="sms-border-right">|</span>
+        <a href="{{'readCount.html?action=read&messageid=' + detailData.messageid}}">已读{{detailData.readnumber}}</a>
+    </div>
+</div>
+<div class="wx-reply" v-show="loaded && !detailData.teacherSend">
+    <p v-show="reply.replyed">
+        {{reply.data.content}}
+    </p>
+        <textarea v-show="!reply.replyed" placeholder="请输入回复内容" v-model="reply.data.content"
+                  maxlength="300" v-bind:class="{true:'text-disabled'}[reply.replyed]" clear-ios-shadow>
+        </textarea>
+    <button class="btn btn-lg btn-block" v-bind:class="{true:'btn-disabled'}[!!reply.replyed]"
+            type="button" @click="!reply.replyed && reply.send()">
+        {{!!reply.replyed?'已回复':'回复'}}
+    </button>
+</div>
+</body>
+<script data-main="js/detail" src="lib/requirejs/require.js"></script>
+</html>

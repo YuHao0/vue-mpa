@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>消息通知</title>
+    <meta charset="UTF-8">
+    <meta content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" name="viewport"/>
+    <meta content="yes" name=" apple-mobile-web-app-capable"/>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <meta http-equiv="Pragma" content="no-cache"/>
+    <meta http-equiv="Cache-Control" content="no-cache"/>
+    <meta http-equiv="Cache-Control" content="max-age=0"/>
+    <link rel="stylesheet" href="lib/weui/dist/style/weui.min.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/iconfont.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/swiper.css">
+</head>
+<body id="index" v-cloak class="sms-list">
+<div class="nav nav-tab" v-if="isTeacher">
+    <a v-bind:class="{active:actionType=='send'}" @click="tabCheck('send')" href="javascript:;">发消息</a>
+    <a v-bind:class="{active:actionType=='list'}" @click="tabCheck('list')" href="javascript:;">发信箱</a>
+    <a v-bind:class="{active:actionType=='inbox'}" @click="tabCheck('inbox')" href="javascript:;">收信箱</a>
+</div>
+<div class="tab-content">
+    <div v-bind:class="{active:actionType=='send'}" v-if="isTeacher" class="tab-pane publish" id="send">
+        <div class="publish-content">
+            <div class="publish-header">
+                <div class="position-relative" @click="sessionContent()">
+                    <a href="receiver.html">
+                        <span class="choose-class-btn"><i>＋</i></span>
+                        <input type="text" class="form-control receivename" placeholder="请选择接收人"
+                               v-model="receiver.receivename" readonly/>
+                    </a>
+                </div>
+            </div>
+            <div class="publish-bgcolor">
+                <div class="form-group">
+                    <input type="text" class="form-control" placeholder="请输入通知主题" v-model="title"/>
+                </div>
+                <div class="form-group">
+                    <textarea class="form-control" rows="5" placeholder="请输入内容" v-show="receiver.sendSms"
+                              v-model="content" maxlength="210"></textarea>
+                    <textarea class="form-control" rows="5" placeholder="请输入内容" v-show="!receiver.sendSms"
+                              v-model="content"></textarea>
+                </div>
+                <div class="form-group form-photo-list clearfix">
+                    <div class="form-photo-item" v-for="pid in photo.list" @click="previewPicture(photo.queued[pid])">
+                        <img v-show="photo.queued[pid].src" :src="photo.queued[pid].src"/>
+                    </div>
+                    <div class="form-webuploader" @click="imgChoose()" v-show="photo.list.length < 9 && WXJSSDKAuth">+
+                    </div>
+                    <div class="form-webuploader iconfont icon-add" id="upLoader"
+                         v-show="photo.list.length<9 && !WXJSSDKAuth"></div>
+                    <span v-show="receiver.sendSms" class="font-num">{{content.length||'0'}}/210 字</span>
+                </div>
+                <div class="sub-mic">
+                    <i class="iconfont icon-sound" @click="recordReady()" v-show="!recordData.recordVoice.length"></i>
+                    <div v-for="item in recordData.recordVoice" class="record-audio">
+                        <span class="check-angle-right"></span>
+                        <div @click="playAudio(item)" class="wx-check">
+                            <span v-show="!item.playing"></span>
+                            <span class="voice-playing" v-show="item.playing"></span>
+                            <audio id="{{item.url}}"></audio>
+                        </div>
+                        <div class="voice-time">
+                            {{item.duration}}"
+                        </div>
+                        <div class="pull-right delete-voice" @click="removeVoice(item)">
+                            <i>x</i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group check wxsend clearfix publish-bgcolor" v-bind:class="{'sms-send':receiver.sendSms}"
+                 v-show="serviceType.XXT">
+                <i class="pull-right" v-bind:class="{true:'on',false:''}[receiver.sendSms]"
+                   @click="sendSmsCtrl();"><span></span></i>
+                同步发送短信
+            </div>
+            <small v-show="serviceType.wxSms">注：已绑定用户能够接收到微信消息，并能够在微信上进行回复，未绑定用户将会收到短信消息</small>
+            <small v-show="serviceType.pureWX">注：已绑定用户能够收到微信推送消息，并可进行回复</small>
+            <small v-show="serviceType.QXT">注：已绑定用户能够收到微信消息，并可在微信上进行回复，未绑定用户将会收到短信消息</small>
+            <small v-show="receiver.sendSms && serviceType.XXT">(同时以微信、短信形式发送，短信只包含文字且同时发送给自己)</small>
+            <div class="form-group check wxsend clearfix publish-bgcolor" v-show="receiver.sendSms && serviceType.XXT">
+                <i class="pull-right" v-bind:class="{'on':receiver.teacherName}"
+                   @click="receiver.teacherName=!receiver.teacherName"><span></span></i>
+                短信后加老师姓名
+                <input class="teacher-name" @click="textFocus()" type="text" v-model="sender"
+                       v-show="receiver.teacherName"/>
+            </div>
+        </div>
+        <div class="publish-btn">
+            <button type="button" class="btn btn-lg btn-block" @click="send()">发送</button>
+        </div>
+        <!-- imgUpload model -->
+        <div id="imgUpload">
+            <div class="imgUpload">{{photo.loadTip}}</div>
+            <div class="weui_mask"></div>
+        </div>
+        <!-- record model -->
+        <div id="record">
+            <div class="record">
+                <div class="recording">
+                    <img src="img/mic3.gif" v-show="recordData.start">
+                    <span v-show="recordData.start">{{recordData.duration}}.{{recordData.time}}"</span>
+                </div>
+                <div @click="record()" class="rec-ctrl">
+                    <img src="img/mic.png" v-show="!recordData.start">
+                    <img src="img/mic2.png" v-show="recordData.start">
+                    <h5>{{recordData.loadTip}}</h5>
+                    <p v-show="control.recordData.start">60秒后将自动停止录音</p>
+                </div>
+            </div>
+            <div class="weui_mask record-mask"></div>
+        </div>
+        <!--previewPictureModal-->
+        <div class="weui_dialog_confirm" id="previewPictureModal">
+            <div class="weui_mask"></div>
+            <div class="weui_dialog">
+                <div class="modal-body">
+                    <img id="previewImage" :src="{{previewData.url}}"/>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="javascript:;" class="iconfont icon-delete" @click="removePicture()"></a>
+            </div>
+        </div>
+    </div>
+    <div v-bind:class="{active:actionType=='list'}" v-if="isTeacher" class="tab-pane" id="list">
+        <div class="list-item" v-for="item in sendData" @click="jumpSession('item',item)">
+            <a href="{{'detail.html?id=' + item.id}}" class="content">
+                <span class="sms-title">{{item.message.title||item.title}}</span>
+                <div class="text-con">
+                    <p v-html="item.message.message"></p>
+                    <p>接收人：{{item.receivename.split('...')[0]}}</p>
+                </div>
+                <i v-text="item.smsTime"></i>
+            </a>
+            <div class="sms-count">
+                <i class="read-tip" v-show="!!item.ischeckreply"></i>
+                <a href="{{'readCount.html?action=read&messageid=' + item.messageid}}">已读{{item.readnumber}}</a>
+                <span class="sms-border-right">|</span>
+                <a href="{{'readCount.html?action=reply&messageid=' + item.messageid}}">回复{{item.replynumber}}</a>
+            </div>
+        </div>
+        <div class="no-data-box" v-if="loaded.sendList && sendData.length===0">
+            <img src="img/none-inferior.gif">
+        </div>
+    </div>
+    <div v-bind:class="{active:actionType=='inbox'}" class="tab-pane" id="inbox">
+        <div class="mail-search" v-show="!inboxSearch.init || inboxData && inboxData.length!=0">
+            <i class="iconfont icon-hunt"></i>
+            <input type="text" v-model="inboxSearch.name" v-on:keyup="resetSearch()" placeholder="请输入发信人的姓名进行搜索">
+            <button class="btn btn-lg btn-block" @click="objectSearch()">搜索</button>
+        </div>
+        <div class="list-item" v-for="item in inboxData" @click="jumpSession('item',item)">
+            <a class="avatar" href="{{'detail.html?id=' + item.id}}">
+                <i class="read-tip" v-show="!item.isread"></i>
+                <img :src="item.user.avatar">
+            </a>
+            <div class="content">
+                <a href="{{'detail.html?id=' + item.id}}">
+                    <span class="sms-title">{{item.message.pushname||item.pushname}}</span>
+                    <p>{{item.message.title||item.title}}</p>
+                    <div class="message-con" v-html="item.message.message"></div>
+                    <i v-text="item.smsTime"></i>
+                </a>
+            </div>
+            <div class="reply-info">
+                    <span class="reply" v-bind:class="{'ready-reply':item.readyReply}" v-show="!item.reply.length">
+                        <span v-show="!item.replyContent&&!item.readyReply">未回复</span>
+                    </span>
+                    <span class="replyed" v-show="item.reply.length">
+                        已回复
+                    </span>
+            </div>
+        </div>
+        <div class="no-data-box" v-if="loaded.inboxList && inboxData.length===0">
+            <img src="img/none-inferior.gif">
+        </div>
+        <div class="receive-tip" v-show="!receiveTip&&!pureWX">收信箱里只显示微信消息，短信消息储存在手机短信收信箱里</div>
+    </div>
+</div>
+</body>
+<script src="https://res.wx.qq.com/open/js/jweixin-1.0.0.js"></script>
+<script src="lib/jquery/dist/jquery.min.js"></script>
+<script src="http://assets.haoyuyuan.com/vendor/plugins/igrow/webuploader/0.1.7/webuploader.igrow.min.js"></script>
+<script src="lib/requirejs/require.js"></script>
+<script src="js/common/require_config.js?2016120600"></script>
+<script src="js/index.js"></script>
+</html>

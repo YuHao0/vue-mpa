@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>选择接收人</title>
+    <meta charset="UTF-8">
+    <meta content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" name="viewport"/>
+    <meta content="yes" name=" apple-mobile-web-app-capable"/>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Cache-Control" content="no-cache" />
+    <meta http-equiv="Cache-Control" content="max-age=0" />
+    <link rel="stylesheet" href="lib/weui/dist/style/weui.min.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/iconfont.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/swiper.css">
+</head>
+<body id="receiver" v-cloak class="receiver">
+    <div class="nav nav-tab clearfix" v-bind:class="{'tab-width':serviceType!=2}">
+        <a v-bind:class="{active:mailType=='classMail'}" @click="contacts.classMail()" href="javascript:;">班级通讯录</a>
+        <a v-bind:class="{active:mailType=='teaMail'}" @click="contacts.teacher()" href="javascript:;">教师通讯录</a>
+        <a v-bind:class="{active:mailType=='stuMail'}" @click="contacts.studentGroup()" href="javascript:;">学生组通讯录</a>
+        <a v-bind:class="{active:mailType=='friMail'}" @click="contacts.friend()" href="javascript:;" v-show="serviceType!=2">好友通讯录</a>
+    </div>
+    <div class="mail-search" v-show="mailType!='friMail'">
+        <i class="iconfont icon-hunt"></i>
+        <input type="text" v-model="searchName" v-on:keyup="!searchName && mailSearch.ini()" placeholder="请输入{{mailType=='classMail'?'班级、':''}}姓名或手机号搜索">
+        <button class="btn btn-lg btn-block" @click="receiver.search()">搜索</button>
+    </div>
+    <div v-show="mailSearch.status" class="mail-search-result">
+        <div class="interacting" v-show="mailSearch.tip!='ok'">
+            <p class="tip">{{mailSearch.tip}}</p>
+        </div>
+        <div class="search-list" v-show="mailSearch.tip=='ok'">
+            <p v-show="mailType=='classMail'">
+                <i class="receiver-check pull-right" v-bind:class="{true:'check',false:'no-check'}[!!mailSearch.checkAll]"
+                   @click="mailSearch.selectAll()">
+                </i>
+                <span>全选</span>
+            </p>
+            <p v-for="class in searchClassResult" class="mail-search-class clearfix" v-show="mailType=='classMail'&&searchClassResult && searchClassResult.length">
+                <i class="receiver-check pull-right" v-bind:class="{true:'check',false:'no-check'}[!!receiver.classes[class.id]]"
+                   @click="receiver.click('searchClasses',class)">
+                </i>
+                <span>{{class.name}}</span><span>{{class.schoolname}}</span>
+            </p>
+            <p v-for="item in mailSearch.data" class="clearfix">
+                <!-- 选择图标 -->
+                <i class="receiver-check pull-right" v-show="mailType=='classMail'"
+                   v-bind:class="{true:'check',false:'no-check'}[!!receiver.classStudent[item.id]]"
+                   @click="mailSearch.choose(item)">
+                </i>
+                <i class="receiver-check pull-right" v-show="mailType=='teaMail'"
+                   v-bind:class="{true:'check',false:'no-check'}[!!mailSearch.teachers[item.id]]"
+                   @click="mailSearch.choose(item)">
+                </i>
+                <i class="receiver-check pull-right" v-show="mailType=='stuMail'"
+                   v-bind:class="{true:'check',false:'no-check'}[!!mailSearch.students[item.id]]"
+                   @click="mailSearch.choose(item)">
+                </i>
+                <span class="name" v-bind:class="{'in-group-mail':mailType!='classMail'}">{{item.name}}</span>
+                <span class="mobile">{{item.mobile}}</span>
+                <span class="text-overflow" v-show="mailType=='classMail'">{{item.class.name}}</span>
+            </p>
+        </div>
+    </div>
+    <div class="tab-content" v-show="!mailSearch.status" v-bind:class="{friendMail:mailType=='friMail'}">
+        <!-- 班级通讯录 -->
+        <div class="tab-pane active" v-bind:class="{active:mailType=='classMail'}" v-show="mailType=='classMail'">
+            <ul class="list-group" v-show="!isAdmin&&UserClassIds.length||isAdmin">
+                <li class="list-group-item" v-for="school in schoolData">
+                    <!--学校选项卡-->
+                    <div class="clearfix">
+                        <i class="receiver-check pull-right"
+                           v-bind:class="{true:'check',false:'no-check'}[!!receiver.schoolsClass[school.id]]"
+                           @click="receiver.click('schoolsClass',school)">
+                        </i>
+                        <i class="iconfont icon-turnRight" v-bind:class="{'turnRight-check':school.classExtend}"></i>
+                        <a href="javascript:;" @click="toggleCtrl(school,'class','classExtend')">
+                            {{school.name}}
+                        </a>
+                    </div>
+                    <!--班级列表-->
+                    <ul class="list-group" v-show="school.classExtend">
+                        <li v-show="school.classData && !school.classData.length">该校区暂无班级</li>
+                        <li class="list-group-item" v-for="class in school.classData">
+                            <!-- 班级选项卡 -->
+                            <div class="clearfix">
+                                <i class="receiver-check pull-right"
+                                   v-bind:class="{true:'check',false:'no-check'}[!!receiver.classes[class.id]]"
+                                   @click="receiver.click('classes',class)">
+                                </i>
+                                <i class="iconfont icon-turnRight" v-bind:class="{'turnRight-check':class.extend}"></i>
+                                <a href="javascript:;" @click="toggleCtrl(class,'student')">
+                                    {{class.name}}
+                                </a>
+                            </div>
+                            <!-- 学生列表 -->
+                            <ul class="list-group" v-show="class.extend">
+                                <!-- 学生 -->
+                                <li v-show="!class.studentData.length">该班级暂无学生</li>
+                                <li class="list-group-item clearfix" v-for="student in class.studentData">
+                                    <!-- 选择图标 -->
+                                    <i class="receiver-check pull-right"
+                                       v-bind:class="{true:'check',false:'no-check'}[!!receiver.classStudent[student.id]]"
+                                       @click="receiver.click('students',student)">
+                                    </i>
+                                    <a class="student-name clearfix">
+                                        <span class="bind-info" v-show="wxName!='unknown'" v-bind:class="{'no-bind':student.unBind}">{{student.unBind ? '未绑定': '已绑定'}}</span>
+                                        <span>{{student.name}}</span>
+                                        <span>{{student.mobile}}</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+            <div v-show="loaded.init && !isAdmin && UserClassIds && !UserClassIds.length" class="no-data-box">
+                <p>您没有带班信息，请联系管理员配置您的带班！</p>
+            </div>
+        </div>
+        <!-- 教师通讯录 -->
+        <div class="tab-pane" v-bind:class="{active:mailType=='teaMail'}" v-show="mailType=='teaMail'">
+            <ul class="list-group">
+                <li class="list-group-item" v-for="school in schoolData">
+                    <!--学校选项卡-->
+                    <div class="clearfix">
+                        <i class="receiver-check pull-right"
+                           v-bind:class="{true:'check',false:'no-check'}[!!receiver.schoolsTeacher[school.id]]"
+                           @click="receiver.click('schoolsTeacher',school)">
+                        </i>
+                        <i class="iconfont icon-turnRight" v-bind:class="{'turnRight-check':school.teacherExtend}"></i>
+                        <a href="javascript:;" @click="toggleCtrl(school,'teacher','teacherExtend')">
+                            {{school.name}}
+                        </a>
+                    </div>
+                    <ul class="list-group" v-show="school.teacherExtend">
+                        <li class="list-group-item">
+                            <div class="clearfix">
+                                <i class="receiver-check pull-right"
+                                   v-bind:class="{true:'check',false:'no-check'}[!!school.checkAllTeacher]"
+                                   @click="receiver.click('teachersAll',school)">
+                                </i>
+                                <i class="iconfont icon-turnRight"
+                                   v-bind:class="{'turnRight-check':school.allTeacherExtend}"></i>
+                                <a href="javascript:;" @click="school.allTeacherExtend=!school.allTeacherExtend">
+                                    全部教师
+                                </a>
+                            </div>
+                            <ul class="list-group" v-show="school.allTeacherExtend">
+                                <!--教师列表-->
+                                <li class="list-group-item clearfix" v-for="teacher in school.teacherData">
+                                    <i class="receiver-check pull-right"
+                                       v-bind:class="{true:'check',false:'no-check'}[!!school.checkedTeachers[teacher.id]]"
+                                       @click="receiver.click('teachers',teacher)">
+                                    </i>
+                                    <a class="clearfix student-name">
+                                        <span class="bind-info pull-right" v-show="wxName!='unknown'" v-bind:class="{'no-bind':teacher.unBind}">{{teacher.unBind ? '未绑定': '已绑定'}}</span>
+                                        <span>{{teacher.name}}</span>
+                                        <span>{{teacher.mobile}}</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        <!--全部教师组-->
+                        <li class="list-group-item" v-for="(key,group) in school.teaGroupData">
+                            <div class="clearfix">
+                                <i class="receiver-check pull-right"
+                                   v-bind:class="{true:'check',false:'no-check'}[!!receiver.groups[key]]"
+                                   @click="receiver.click('groups',group)">
+                                </i>
+                                <i class="iconfont icon-turnRight" v-bind:class="{'turnRight-check':group.extend}"></i>
+                                <a href="javascript:;" @click="load.groupTeacher(group)">
+                                    {{group.name}}
+                                </a>
+                            </div>
+                            <ul class="list-group" v-show="group.extend">
+                                <!--分组教师-->
+                                <li class="list-group-item clearfix" v-for="teacher in group.teacherData">
+                                    <i class="receiver-check pull-right"
+                                       v-bind:class="{true:'check',false:'no-check'}[!!group.checkedTeachers[teacher.id]]"
+                                       @click="receiver.click('teachers',teacher)">
+                                    </i>
+                                    <a class="clearfix student-name">
+                                        <span class="bind-info pull-right" v-show="wxName!='unknown'" v-bind:class="{'no-bind':teacher.unBind}">{{teacher.unBind ? '未绑定': '已绑定'}}</span>
+                                        <span>{{teacher.name}}</span>
+                                        <span>{{teacher.mobile}}</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <!-- 学生组通讯录 -->
+        <div class="tab-pane" v-bind:class="{active:mailType=='stuMail'}" v-show="mailType=='stuMail'&&loaded.studentGroup">
+            <ul class="list-group">
+                <!--学生组-->
+                <li v-show="studentGroupData.length" class="list-group-item">
+                    <!-- 学生组选项卡 -->
+                    <div class="clearfix">
+                        <i class="receiver-check pull-right"
+                           v-bind:class="{true:'check',false:'no-check'}[!!stuGroupChecked.studentGroup]"
+                           @click="receiver.click('studentGroupAll','studentGroup')">
+                        </i>
+                        <i class="iconfont icon-turnRight"
+                           v-bind:class="{'turnRight-check':studentGroupData.extend}"></i>
+                        <a href="javascript:;" @click="stuGroupToggleCtrl('studentGroupData')">
+                            学生组
+                        </a>
+                    </div>
+                    <!-- 学生组列表 -->
+                    <ul class="list-group" v-show="studentGroupData.extend">
+                        <li class="list-group-item" v-for="group in studentGroupData">
+                            <!-- 组选项卡 -->
+                            <div class="clearfix">
+                                <i class="receiver-check pull-right"
+                                   v-bind:class="{true:'check',false:'no-check'}[!!receiver.studentGroup[group.id]]"
+                                   @click="receiver.click('studentGroup', group)">
+                                </i>
+                                <i class="iconfont icon-turnRight" v-bind:class="{'turnRight-check':group.extend}"></i>
+                                <a href="javascript:;" @click="load.groupStudent(group,'studentGroup')">
+                                    {{group.name}}
+                                </a>
+                            </div>
+                            <!-- 学生列表 -->
+                            <ul class="list-group" v-show="group.extend">
+                                <!--学生-->
+                                <li v-show="group.studentData && !group.studentData.length">暂无学生</li>
+                                <li class="list-group-item clearfix" v-for="student in group.studentData">
+                                    <!-- 选择图标 -->
+                                    <i class="receiver-check pull-right"
+                                       v-bind:class="{true:'check',false:'no-check'}[!!group.checkedStudents[student.id]]"
+                                       @click="receiver.click('studentGroupStudents',student)">
+                                    </i>
+                                    <a>{{student.student.name}}</a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <!--社团-->
+                <li v-show="clubData.length" class="list-group-item">
+                    <!-- 社团选项卡 -->
+                    <div class="clearfix">
+                        <i class="receiver-check pull-right"
+                           v-bind:class="{true:'check',false:'no-check'}[!!stuGroupChecked.club]"
+                           @click="receiver.click('studentGroupAll','club')">
+                        </i>
+                        <i class="iconfont icon-turnRight" v-bind:class="{'turnRight-check':clubData.extend}"></i>
+                        <a href="javascript:;" @click="stuGroupToggleCtrl('clubData')">
+                            社团
+                        </a>
+                    </div>
+                    <!-- 社团列表 -->
+                    <ul class="list-group" v-show="clubData.extend">
+                        <li class="list-group-item" v-for="club in clubData">
+                            <!-- 社团选项卡 -->
+                            <div class="clearfix">
+                                <i class="receiver-check pull-right"
+                                   v-bind:class="{true:'check',false:'no-check'}[!!receiver.club[club.id]]"
+                                   @click="receiver.click('club', club)">
+                                </i>
+                                <i class="iconfont icon-turnRight" v-bind:class="{'turnRight-check':club.extend}"></i>
+                                <a href="javascript:;" @click="load.groupStudent(club,'club')">
+                                    {{club.name}}
+                                </a>
+                            </div>
+                            <!-- 学生列表 -->
+                            <ul class="list-group" v-show="club.extend">
+                                <!--学生-->
+                                <li v-show="club.studentData && !club.studentData.length">暂无学生</li>
+                                <li class="list-group-item clearfix" v-for="item in club.studentData">
+                                    <!-- 选择图标 -->
+                                    <i class="receiver-check pull-right"
+                                       v-bind:class="{true:'check',false:'no-check'}[!!club.checkedStudents[item.id]]"
+                                       @click="receiver.click('clubStudents',item)">
+                                    </i>
+                                    <a>{{item.student.name}}</a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <!--选修-->
+                <li v-show="electiveData.length" class="list-group-item">
+                    <!-- 选修选项卡 -->
+                    <div class="clearfix">
+                        <i class="receiver-check pull-right"
+                           v-bind:class="{true:'check',false:'no-check'}[!!stuGroupChecked.elective]"
+                           @click="receiver.click('studentGroupAll','elective')">
+                        </i>
+                        <i class="iconfont icon-turnRight"
+                           v-bind:class="{'turnRight-check':electiveData.extend}"></i>
+                        <a href="javascript:;" @click="stuGroupToggleCtrl('electiveData')">
+                            选修课
+                        </a>
+                    </div>
+                    <!-- 选修课列表 -->
+                    <ul class="list-group" v-show="electiveData.extend">
+                        <li class="list-group-item" v-for="elective in electiveData">
+                            <!-- 选修课选项卡 -->
+                            <div class="clearfix">
+                                <i class="receiver-check pull-right"
+                                   v-bind:class="{true:'check',false:'no-check'}[!!receiver.elective[elective.id]]"
+                                   @click="receiver.click('elective', elective)">
+                                </i>
+                                <i class="iconfont icon-turnRight" v-bind:class="{'turnRight-check':elective.extend}"></i>
+                                <a href="javascript:;" @click="load.groupStudent(elective,'elective')">
+                                    {{elective.name}}
+                                </a>
+                            </div>
+                            <!-- 学生列表 -->
+                            <ul class="list-group" v-show="elective.extend">
+                                <!--学生-->
+                                <li v-show="elective.studentData && !elective.studentData.length">暂无学生</li>
+                                <li class="list-group-item clearfix" v-for="item in elective.studentData">
+                                    <!-- 选择图标 -->
+                                    <i class="receiver-check pull-right"
+                                       v-bind:class="{true:'check',false:'no-check'}[!!elective.checkedStudents[item.id]]"
+                                       @click="receiver.click('electiveStudents',item)">
+                                    </i>
+                                    <a>
+                                        {{item.student.name}}
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <!--七选三-->
+                <li v-show="seventhressData.length" class="list-group-item">
+                    <!-- 七选三选项卡 -->
+                    <div class="clearfix">
+                        <i class="receiver-check pull-right"
+                           v-bind:class="{true:'check',false:'no-check'}[!!stuGroupChecked.seventhress]"
+                           @click="receiver.click('studentGroupAll','seventhress')">
+                        </i>
+                        <i class="iconfont icon-turnRight"
+                           v-bind:class="{'turnRight-check':seventhressData.extend}"></i>
+                        <a href="javascript:;" @click="stuGroupToggleCtrl('seventhressData')">
+                            七选三
+                        </a>
+                    </div>
+                    <!-- 七选三列表 -->
+                    <ul class="list-group" v-show="seventhressData.extend">
+                        <li class="list-group-item" v-for="seventhres in seventhressData">
+                            <!-- 七选三选项卡 -->
+                            <div class="clearfix">
+                                <i class="receiver-check pull-right"
+                                   v-bind:class="{true:'check',false:'no-check'}[!!receiver.seventhress[seventhres.id]]"
+                                   @click="receiver.click('seventhress', seventhres)">
+                                </i>
+                                <i class="iconfont icon-turnRight" v-bind:class="{'turnRight-check':seventhres.extend}"></i>
+                                <a href="javascript:;" @click="load.groupStudent(seventhres,'seventhres')">
+                                    {{seventhres.name}}
+                                </a>
+                            </div>
+                            <!-- 学生列表 -->
+                            <ul class="list-group" v-show="seventhres.extend">
+                                <!--学生-->
+                                <li v-show="seventhres.studentData && !seventhres.studentData.length">暂无学生</li>
+                                <li class="list-group-item clearfix" v-for="item in seventhres.studentData">
+                                    <!-- 选择图标 -->
+                                    <i class="receiver-check pull-right"
+                                       v-bind:class="{true:'check',false:'no-check'}[seventhres.checkedStudents[item.id]]"
+                                       @click="receiver.click('seventhressStudents',item)">
+                                    </i>
+                                    <a class="pull-left">
+                                        {{item.student.name}}
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+            <div class="no-data-box"
+                 v-if="!studentGroupData.length&&!clubData.length&&!electiveData.length&&!seventhressData.length">
+                <p>暂无学生组数据</p>
+            </div>
+        </div>
+        <!-- 好友通讯录 -->
+        <div class="tab-pane" v-bind:class="{active:mailType=='friMail'}" v-show="mailType=='friMail'&&loaded.friend">
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <div class="clearfix">
+                        <i class="receiver-check pull-right"
+                           v-bind:class="{true:'check',false:'no-check'}[!!friendData.all]"
+                           @click="receiver.click('friendAll')">
+                        </i>
+                        <i class="iconfont icon-turnRight"
+                           v-bind:class="{'fa-item-check':friendData.extend}"></i>
+                        <a href="javascript:;">
+                            我的好友
+                        </a>
+                    </div>
+                    <ul class="list-group" v-show="friendData.extend">
+                        <li class="list-group-item" v-for="item in friendData">
+                            <div class="clearfix">
+                                <i class="receiver-check pull-right"
+                                   v-bind:class="{true:'check',false:'no-check'}[!!receiver.friend[item.id]]"
+                                   @click="receiver.click('friend', item)">
+                                </i>
+                                <a href="javascript:;" class="clearfix student-name">
+                                    <span></span>
+                                    <span>{{item.name}}</span>
+                                    <span>{{item.mobile}}</span>
+                                </a>
+                            </div>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+            <div class="no-data-box" v-if="!friendData.length">
+                <p>您未添加好友，请在个人中心好友通讯录添加好友,添加后请刷新网页查看好友。</p>
+            </div>
+        </div>
+    </div>
+    <div class="list-bottom">
+        <a href="javascript:;" @click="receiver.save()" class="btn btn-lg btn-block pull-right">确定</a>
+    </div>
+</body>
+<script data-main="js/receiver" src="lib/requirejs/require.js"></script>
+</html>
